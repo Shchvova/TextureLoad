@@ -6,7 +6,7 @@ local function downloadDlc( rootUrl, listener)
 	local useRelativeLinks = true
 	local filesToDownload
 	local totalSize = 0
-	local donwloaded = 0
+	local downloaded = 0
 	local downloadedFiles = {}
 
 
@@ -21,6 +21,18 @@ local function downloadDlc( rootUrl, listener)
 		end
 		local nextFile = table.remove( filesToDownload )
 		local file = nextFile.file
+
+		local filePath = system.pathForFile( file, system.CachesDirectory )
+		local f = io.open( filePath, 'r' )
+		if f then
+			downloaded = downloaded + f:seek('end')
+			f:close( )
+			report("Already downloaded " .. file, false, downloaded/totalSize )
+			downloadedFiles[#downloadedFiles+1] = file
+			timer.performWithDelay( 100, downloadNextFile )
+			return
+		end
+
 		local url = nextFile.url
 		if useRelativeLinks then
 			url = rootUrl .. url
@@ -30,16 +42,16 @@ local function downloadDlc( rootUrl, listener)
 			if event.isError then
 				report("Error downloading " .. file, true, 0)
 			elseif event.phase == "progress" then
-				report("Downloading " .. file, false, (donwloaded+event.bytesTransferred)/totalSize )
+				report("Downloading " .. file, false, (downloaded+event.bytesTransferred)/totalSize )
 			elseif event.phase == "ended" then
-				report("Download complete for " .. file, false, (donwloaded+event.bytesTransferred)/totalSize )
-				donwloaded = donwloaded+event.bytesTransferred
+				report("Download complete for " .. file, false, (downloaded+event.bytesTransferred)/totalSize )
+				downloaded = downloaded+event.bytesTransferred
 				downloadedFiles[#downloadedFiles+1] = file
 				downloadNextFile()
 			end
 		end
 
-		report("Downloading " .. file, false, donwloaded/totalSize )
+		report("Downloading " .. file, false, downloaded/totalSize )
 		network.download( url, 'GET', downloadListener, {progress=true}, file ,system.CachesDirectory )
 	end
 
