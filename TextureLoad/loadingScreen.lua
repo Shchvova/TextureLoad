@@ -16,7 +16,7 @@ function scene:create( event )
 
 end
 
-
+local globalLoadLock = false
 
 local function setProgress( progress, message )
     if text and message then
@@ -31,7 +31,16 @@ local function setProgress( progress, message )
 end
 
 
-local function releaseTextures( )
+local function releaseTextures( forceLoad )
+
+    if globalLoadLock and not forceLoad then
+        return
+    end
+
+    if not forceLoad then
+        globalLoadLock = true
+    end
+
     local textures = composer.getVariable( 'textures' )
     composer.setVariable( 'textures', {} )
 
@@ -41,11 +50,23 @@ local function releaseTextures( )
         end
         -- alternatevily we could just call following to release all at once
         -- graphics.releaseTextures{type='image'}
+        if not forceLoad then
+            timer.performWithDelay( 1, function (  )
+                globalLoadLock = false
+            end )
+        end
     end
 end 
 
-local function preloadTextures( setProgressLocal, onComplete )
-    releaseTextures()
+local function preloadTextures( setProgressLocal, onComplete, forceLoad )
+    if globalLoadLock and not forceLoad then
+        return
+    end
+    if not forceLoad then
+        globalLoadLock = true
+    end
+
+    releaseTextures( true )
     local filenames = composer.getVariable( 'filenames' )
     local textures = {}
 
@@ -69,6 +90,9 @@ local function preloadTextures( setProgressLocal, onComplete )
                 composer.setVariable( 'textures', textures )
                 if onComplete then
                     onComplete()
+                    if not forceLoad then
+                        globalLoadLock = false
+                    end                    
                 end
             else
                 ackquireTexture(i+1)
