@@ -7,17 +7,18 @@ local dlc = require('dlc')
 
 local text, progressBar, progressBg
 
+-- this variable is used to prevent simultaneous tasks for downloading and releasing textures
+local globalLoadLock = false
 
 function scene:create( event )
     local sceneGroup = self.view
     text = display.newText( sceneGroup, "Welcome!", display.contentCenterX, display.contentCenterY+60, nil, 16 )
     progressBg = display.newRect( sceneGroup, display.contentCenterX, display.contentCenterY, 400, 60 )
     progressBar = display.newRect( sceneGroup, display.contentCenterX, display.contentCenterY, 396, 59 )
-
 end
 
-local globalLoadLock = false
 
+-- this would set progress bar and message
 local function setProgress( progress, message )
     if text and message then
         text.text = message
@@ -31,6 +32,7 @@ local function setProgress( progress, message )
 end
 
 
+-- this function would release loaded with `graphics.newTexture` textures.
 local function releaseTextures( forceLoad )
 
     if globalLoadLock and not forceLoad then
@@ -58,6 +60,9 @@ local function releaseTextures( forceLoad )
     end
 end 
 
+
+-- this function would create texture objects with `graphics.newTexture` 
+-- it would do it 1 by 1
 local function preloadTextures( setProgressLocal, onComplete, forceLoad )
     if globalLoadLock and not forceLoad then
         return
@@ -66,11 +71,14 @@ local function preloadTextures( setProgressLocal, onComplete, forceLoad )
         globalLoadLock = true
     end
 
+    -- if there were any textures loaded, release them first
     releaseTextures( true )
     local filenames = composer.getVariable( 'filenames' )
     local textures = {}
 
-    local function ackquireTexture(i)
+    -- this function load a texture, than schedules to load a next texture on next frame
+    local function acquireTexture(i)
+        -- load a texture
         local texture = graphics.newTexture{
             type = 'image',
             filename = filenames[i],
@@ -81,11 +89,15 @@ local function preloadTextures( setProgressLocal, onComplete, forceLoad )
             textures[i] = texture
         end
 
+        -- report progress
         if setProgressLocal then
             setProgressLocal( 1-i/#filenames, "" )
         end
 
+        -- schedule to load next texture on next frame
         timer.performWithDelay( 1, function( )
+            -- if all textures was loaded, report it to onComplete callback
+            -- as well as set 'textures' variable to composer to expose loaded textures
             if i >= #filenames then
                 composer.setVariable( 'textures', textures )
                 if onComplete then
@@ -95,57 +107,48 @@ local function preloadTextures( setProgressLocal, onComplete, forceLoad )
                     end                    
                 end
             else
-                ackquireTexture(i+1)
+                acquireTexture(i+1)
             end
         end )
     end
     
-    composer.setVariable( 'textures', textures )
-    ackquireTexture(1)
+    -- acquire first texture    
+    acquireTexture(1)
 end
 
-function scene:show( event )
 
+-- this callback track download progress and when it is done, transfers to next scene
+local function dlcDownloadListener( event )
+    setProgress( event.progress, event.message )
+    if event.done then
+        -- dlc listener event has "done" property, it means we're done downloading textures
+        -- it is time to expose filenames and functions to other scenes with composer.serVariable
+        composer.setVariable( 'filenames', event.files )
+        composer.setVariable( 'preloadTextures', preloadTextures )
+        composer.setVariable( 'releaseTextures', releaseTextures )
+        -- as well as preload textures.
+        -- last parameter to preload textures is completed callbac. When we're done loading textures
+        -- to memory, we can proceed to next scene.
+        preloadTextures( setProgress, function ( )
+            composer.gotoScene( 'demo' , {time=400, effect='fade'} )
+        end )
+        progressBar:setFillColor( 0,1,0,1 )
+    end
+end
+
+
+function scene:show( event )
     local sceneGroup = self.view
     local phase = event.phase
 
     if ( phase == "will" ) then
         progressBar:setFillColor( 0,0,0 )
     elseif ( phase == "did" ) then
-        function dlcListener( event )
-            setProgress( event.progress, event.message )
-            if event.done then
-                composer.setVariable( 'filenames', event.files )
-                composer.setVariable( 'preloadTextures', preloadTextures )
-                composer.setVariable( 'releaseTextures', releaseTextures )
-                preloadTextures( setProgress, function ( )
-                    composer.gotoScene( 'demo' , {time=400, effect='fade'} )
-                end )
-                progressBar:setFillColor( 0,1,0,1 )
-            end
-        end
-        dlc.download( composer.getVariable( 'dlcUrl' ), dlcListener )
-
+        -- statrt downloading textures immidiatelly, progress would be reported to dlcDownloadListener
+        dlc.download( composer.getVariable( 'dlcUrl' ), dlcDownloadListener )
     end
 end
 
-
-function scene:hide( event )
-
-    local sceneGroup = self.view
-    local phase = event.phase
-
-    if ( phase == "will" ) then
-    elseif ( phase == "did" ) then
-    end
-end
-
-
-function scene:destroy( event )
-
-    local sceneGroup = self.view
-
-end
 
 
 -- -------------------------------------------------------------------------------
@@ -153,8 +156,6 @@ end
 -- Listener setup
 scene:addEventListener( "create", scene )
 scene:addEventListener( "show", scene )
-scene:addEventListener( "hide", scene )
-scene:addEventListener( "destroy", scene )
 
 -- -------------------------------------------------------------------------------
 

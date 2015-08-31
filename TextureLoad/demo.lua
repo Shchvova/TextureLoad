@@ -81,13 +81,11 @@ local function splatDown(group, x, y, img)
     end
     local obj = getSplatterObject(group, img)
     if obj then
-            obj.x = x
-            obj.y = y
+        obj.x = x
+        obj.y = y
         timer.performWithDelay( 10, function( )
-            obj:removeSelf( )
-            -- timer.performWithDelay( 1, function( )
-            splatDown(group, x, y+10, img + 1);
-            -- end )
+            obj:removeSelf( ) -- destroy previous object
+            splatDown(group, x, y+10, img + 1); -- create new object little lower and with next image (img+1)
         end )
     end
 end
