@@ -1,7 +1,10 @@
+
+-- this scene initiates and shows progress of downloading textures
+-- as well as loading them into memory and moving on to main scene
+
+
 local composer = require( "composer" )
-
 local scene = composer.newScene()
-
 local dlc = require('dlc')
 
 
@@ -18,7 +21,7 @@ function scene:create( event )
 end
 
 
--- this would set progress bar and message
+-- this would set progress bar and update message
 local function setProgress( progress, message )
     if text and message then
         text.text = message

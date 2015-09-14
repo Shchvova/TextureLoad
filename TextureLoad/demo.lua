@@ -1,3 +1,9 @@
+-------------------------------------------------------------------------------------------
+--- Demo scene is very simple - it would create and destroy display objects from 
+--- hi-res textures. It ahso has buttons to preload textures and release preloaded textures
+-------------------------------------------------------------------------------------------
+
+
 local composer = require( "composer" )
 local widget = require( "widget" )
 
