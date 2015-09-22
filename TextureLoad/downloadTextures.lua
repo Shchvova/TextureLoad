@@ -9,6 +9,7 @@ local text, progressBar, progressBg
 function scene:create( event )
     local sceneGroup = self.view
     display.newText( sceneGroup, "Downloading Textures", display.contentCenterX, 80, nil, 25 )
+    display.newText( sceneGroup, "Wi-Fi connection in strongly recommended", display.contentCenterX, 109, nil, 15 )
     text = display.newText( sceneGroup, "Welcome!", display.contentCenterX, display.contentCenterY+60, nil, 16 )
     progressBg = display.newRect( sceneGroup, display.contentCenterX, display.contentCenterY, 400, 60 )
     progressBar = display.newRect( sceneGroup, display.contentCenterX, display.contentCenterY, 396, 59 )
