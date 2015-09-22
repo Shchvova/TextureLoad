@@ -55,23 +55,38 @@ local function downloadDlc( rootUrl, listener)
 		network.download( url, 'GET', downloadListener, {progress=true}, file ,system.CachesDirectory )
 	end
 
+	local function processManifest(fullPath)
+		local mf = io.open( fullPath, "r" )
+		local manifest = json.decode( mf:read( "*all" ) )
+		mf:close( )
+		filesToDownload = manifest.files
+		totalSize = manifest.size
+		useRelativeLinks = manifest.relative
+		downloadNextFile()
+	end
+
 	local function manifestDownload(event)
 		if event.isError then
 			report("Error downloading manifest", true, 0)
 		elseif event.phase == "ended" then
 			report("Received manifest", false, 0)
-			local mf = io.open( event.response.fullPath, "r" )
-			local manifest = json.decode( mf:read( "*all" ) )
-			mf:close( )
-			filesToDownload = manifest.files
-			totalSize = manifest.size
-			useRelativeLinks = manifest.relative
-			downloadNextFile()
+			processManifest(event.response.fullPath)
 		end
 	end
 
-	report("Downloading manifest", false, 0)
-	network.download( rootUrl .. 'manifest.json', 'GET', manifestDownload, 'manifest.json', system.CachesDirectory )
+	
+	local manifestFile = "manifest.json"
+	local manifestFilePath = system.pathForFile( manifestFile, system.CachesDirectory )
+	local f = io.open( manifestFilePath, 'r' )
+	if f then
+		f:close( )
+		report("Manifest already downloaded", false, 0 )
+		timer.performWithDelay( 1, function() processManifest(manifestFilePath) end )
+	else
+		report("Downloading manifest", false, 0)
+		network.download( rootUrl .. manifestFile, 'GET', manifestDownload, 'manifest.json', system.CachesDirectory )
+	end
+
 end
 
 return {download=downloadDlc}
